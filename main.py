@@ -19,17 +19,19 @@ class TelegramLog:
             notification = False
         else:
             notification = True
+        try:
+            post = requests.post(
+                send_message_url,
+                data={
+                    "chat_id": self.chat_id,
+                    "text": text,
+                    "parse_mode": 'Markdown',
+                    "disable_notification": notification
+                }
+            )
+        except:
+            print(f"Не могу отправить лог, время ошибки = {str(datetime.datetime.now())[:-7]}")
 
-        post = requests.post(
-            send_message_url,
-            data={
-                "chat_id": self.chat_id,
-                "text": text,
-                "parse_mode": 'Markdown',
-                "disable_notification": notification
-            }
-        )
-        print(post.text)
         if post.status_code != 200:
             print(f"Не могу отправить лог, время ошибки = {str(datetime.datetime.now())[:-7]}")
 
@@ -59,12 +61,3 @@ class TelegramLog:
             "critical",
             self.create_log('critical', text)
         )
-
-
-log = TelegramLog(
-    token='5259727067:AAFjDk_HOdbg8LoT7Is5XS6kiGyv2TrcE98',
-    chat_id='-1001779836149',
-    script_name='test'
-)
-
-log.warning("что-то жуткое произошло")
