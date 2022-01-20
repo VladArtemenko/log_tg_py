@@ -41,7 +41,8 @@ class TelegramLog:
 *Логин:* `{self.user_name}`
 *Скрипт:* `{self.script_name}`
 *Уровень лога:* `{level}`
-`{text}`
+
+{text}
         """
 
     def info(self, text):
