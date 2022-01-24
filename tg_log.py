@@ -1,6 +1,7 @@
 import datetime
 import os
 import requests
+from accessify import protected
 
 
 class TelegramLog:
@@ -22,6 +23,7 @@ class TelegramLog:
         if log_format is not None:
             self.log_format = log_format
 
+    @protected
     def send_message(self, level, text):
         send_message_url = self.url + '/sendMessage'
 
@@ -29,6 +31,7 @@ class TelegramLog:
             notification = False
         else:
             notification = True
+
         try:
             post = requests.post(
                 send_message_url,
@@ -56,6 +59,7 @@ class TelegramLog:
                 print("Сообщение об ошибке также не смогли отправить")
         return post.status_code
 
+    @protected
     def create_log(self, level, text):
         dict_for_replace = {
             '%time': str(datetime.datetime.now())[:-7],
@@ -69,21 +73,80 @@ class TelegramLog:
             current_msg = current_msg.replace(key, dict_for_replace[key])
         return current_msg
 
-    def info(self, text):
-        self.send_message(
-            "info",
-            self.create_log('info', text)
-        )
+    @protected
+    def send_document(self, level, text, file):
+        send_message_url = self.url + '/sendDocument'
 
-    def warning(self, text):
-        self.send_message(
-            "waring",
-            self.create_log('warning', text)
-        )
+        if level != 'info':
+            notification = False
+        else:
+            notification = True
 
-    def critical(self, text):
-        self.send_message(
-            "critical",
-            self.create_log('critical', text)
-        )
+        try:
+            post = requests.post(
+                send_message_url,
+                data={
+                    "chat_id": self.chat_id,
+                    "caption": text,
+                    "parse_mode": 'HTML',
+                    "disable_notification": notification
+                },
+                files={
+                    'document': open(file, 'rb')
+                }
+            )
+        except:
+            text = f"Не могу отправить лог, время ошибки = {str(datetime.datetime.now())[:-7]}"
+            print(text)
+            try:
+                requests.post(send_message_url, data={"text": text})
+            except:
+                print("Сообщение об ошибке также не смогли отправить")
 
+        if post.status_code != 200:
+            text = f"TG API status code 200 {str(datetime.datetime.now())[:-7]}"
+            print(post.text)
+            try:
+                requests.post(send_message_url, data={"text": text})
+            except:
+                print("Сообщение об ошибке также не смогли отправить")
+        return post.status_code
+
+    def info(self, text, file=None):
+        if file is None:
+            self.send_message(
+                "info",
+                self.create_log('info', text)
+            )
+        else:
+            self.send_document(
+                "critical",
+                self.create_log('critical', text),
+                file
+            )
+
+    def warning(self, text, file=None):
+        if file is None:
+            self.send_message(
+                "warning",
+                self.create_log('warning', text)
+            )
+        else:
+            self.send_document(
+                "critical",
+                self.create_log('critical', text),
+                file
+            )
+
+    def critical(self, text, file=None):
+        if file is None:
+            self.send_message(
+                "critical",
+                self.create_log('critical', text)
+            )
+        else:
+            self.send_document(
+                "critical",
+                self.create_log('critical', text),
+                file
+            )
