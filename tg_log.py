@@ -1,10 +1,30 @@
 import datetime
 import os
+import time
+
 import requests
 from accessify import protected
 
 
 class TelegramLog:
+    class Filters:
+        def __init__(self, result):
+            self.result = result
+
+        @staticmethod
+        def no_filter():
+            return True
+
+    class BotLogic:
+        def __init__(self, result, token):
+            self.result = result
+            self.token = token
+
+        def only_text_echo(self):
+            message_from = self.result['message']['from']['id']
+            text = self.result['message']['text']
+            return TelegramLog(self.token, message_from, "", "%text").warning(text)
+
     url = "https://api.telegram.org/bot"
     log_format = """
 <b>Дата:</b> <code>%time</code>
@@ -24,7 +44,10 @@ class TelegramLog:
             self.log_format = log_format
 
     @protected
-    def send_message(self, level, text):
+    def send_message(self, level, text, chat_id=None):
+        if chat_id is None:
+            chat_id = self.chat_id
+
         send_message_url = self.url + '/sendMessage'
 
         if level != 'info':
@@ -36,7 +59,7 @@ class TelegramLog:
             post = requests.post(
                 send_message_url,
                 data={
-                    "chat_id": self.chat_id,
+                    "chat_id": chat_id,
                     "text": text,
                     "parse_mode": 'HTML',
                     "disable_notification": notification
@@ -150,3 +173,42 @@ class TelegramLog:
                 self.create_log('critical', text),
                 file
             )
+
+    def get_updates(self, update_id):
+        get_updates_url = self.url + '/getUpdates'
+        return requests.post(
+            get_updates_url,
+            data={
+                'offset': update_id + 1,
+                'limit': 1,
+                'timeout': 0
+            }
+        )
+
+
+TOKEN = ''
+
+logger = TelegramLog(
+    TOKEN,
+    '476973273',
+    'echo',
+    log_format="%text"
+)
+
+
+update_id = 0
+while True:
+    try:
+        time.sleep(1)
+        updates = logger.get_updates(update_id).json()
+        if not updates['result']:
+            continue
+
+        update_id = updates['result'][0]['update_id']
+        for update in updates['result']:
+            if logger.Filters(update).no_filter():
+                print(update)
+                logger.BotLogic(update, TOKEN).only_text_echo()
+    except Exception as e:
+        print(e)
+        break
